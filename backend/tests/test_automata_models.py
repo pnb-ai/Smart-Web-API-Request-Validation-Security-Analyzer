@@ -10,7 +10,7 @@ def test_automaton_schema_accepts_epsilon_and_symbol_classes() -> None:
         {
             "type": "EPSILON_NFA",
             "states": [{"id": "q0", "label": "Start", "isStart": True, "isAccepting": False, "x": 0, "y": 0}],
-            "alphabet": ["DIGIT", "ε"],
+            "alphabet": ["DIGIT"],
             "transitions": [{"from": "q0", "to": "q0", "symbols": ["DIGIT", "ε"]}],
         }
     )

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.automata.routes import router as automata_router
 
 app = FastAPI(
     title="Smart Web/API Request Validation & Security Analyzer",
@@ -14,6 +15,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(automata_router)
 
 
 @app.get("/health", tags=["system"])
