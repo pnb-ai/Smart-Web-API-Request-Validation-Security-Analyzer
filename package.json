@@ -1,0 +1,12 @@
+{
+  "name": "smart-web-api-request-validation-security-analyzer",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["frontend"],
+  "scripts": {
+    "dev": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace frontend",
+    "test": "npm run test --workspace frontend",
+    "test:watch": "npm run test:watch --workspace frontend"
+  }
+}
