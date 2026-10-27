@@ -1,8 +1,10 @@
 import { useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, ArrowDownRight, ArrowRight, Binary, Braces, Check, ChevronDown, CircleHelp, Command, GitFork, Keyboard, Moon, Network, Play, Plus, Regex, ScanSearch, ShieldCheck, Sun, Workflow } from 'lucide-react'
+import { ArrowRight, Binary, Braces, Check, ChevronDown, CircleHelp, GitFork, Keyboard, Moon, Network, Play, Plus, Regex, ScanSearch, ShieldCheck, Sun, Workflow } from 'lucide-react'
 import { pages, useAppStore } from './store/appStore'
 import { ToastProvider, useToast } from './components/ToastProvider'
+import { AutomataBuilder, AutomataSimulator } from './components/AutomataWorkspace'
+import { useAutomataStore } from './store/automataStore'
 
 const icons = { builder: Workflow, simulator: Play, transform: GitFork, equivalence: Network, regex: Regex, lexer: Braces, validator: ShieldCheck, security: ScanSearch }
 
@@ -37,23 +39,13 @@ function Workspace() {
       <div className="content-wrap">
         <motion.div key={activePage} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }}>
           <div className="page-eyebrow"><span className="eyebrow-line" /> FINITE AUTOMATA WORKBENCH <span className="version-chip">BETA</span></div>
-          <div className="page-heading-row"><div><h1>{selected.label}</h1><p className="page-subtitle">Design, explore, and reason about formal languages.</p></div><button className="button button-primary" onClick={() => notify('Automaton creation will be available in the builder feature.')}><Plus size={17} /> New automaton</button></div>
-          {activePage === 'builder' ? <BuilderEmptyState onCreate={() => notify('Automaton creation will be available in the builder feature.')} onExample={() => notify('Example automata are coming in a later feature.')} /> : <PlaceholderPage page={selected.label} />}
+          <div className="page-heading-row"><div><h1>{selected.label}</h1><p className="page-subtitle">Design, explore, and reason about formal languages.</p></div><button className="button button-primary" onClick={() => { if (activePage === 'builder') useAutomataStore.getState().setAutomaton({ type: 'DFA', states: [], alphabet: [], transitions: [] }); else setPage('builder') }}><Plus size={17} /> {activePage === 'builder' ? 'New automaton' : 'Open builder'}</button></div>
+          {activePage === 'builder' ? <AutomataBuilder /> : activePage === 'simulator' ? <AutomataSimulator /> : <PlaceholderPage page={selected.label} />}
         </motion.div>
         <footer className="workspace-footer"><span><span className="online-dot" /> Local workspace</span><span>Automata Studio <b>·</b> 0.1.0</span></footer>
       </div>
     </main>
   </div>
-}
-
-function BuilderEmptyState({ onCreate, onExample }: { onCreate: () => void; onExample: () => void }) {
-  return <section className="builder-layout">
-    <div className="canvas-card"><div className="canvas-toolbar"><div><span className="canvas-title">Untitled automaton</span><span className="draft-chip">DRAFT</span></div><div className="canvas-tools"><button className="icon-button" title="Automata canvas controls"><Command size={16} /></button><button className="button button-small" onClick={onCreate}><Plus size={15} /> Add state</button></div></div>
-      <div className="canvas-empty"><div className="empty-orbit orbit-one" /><div className="empty-orbit orbit-two" /><div className="empty-visual"><div className="empty-node node-a" /><div className="empty-node node-b" /><div className="empty-node node-c" /><ArrowDownRight className="edge-arrow" size={36} /></div><h2>Your canvas is ready</h2><p>Add states and connect them to start<br className="desktop-break" /> modeling a finite automaton.</p><button className="button button-primary" onClick={onCreate}><Plus size={17} /> Create your first state</button><div className="canvas-hint"><Keyboard size={14} /> Tip: use <kbd>Space</kbd> to pan the canvas</div></div>
-      <div className="canvas-legend"><span><i className="legend-start" /> Start state</span><span><i className="legend-accept" /> Accepting state</span><span className="legend-right">DFA <ChevronDown size={13} /></span></div>
-    </div>
-    <aside className="inspector-card"><div className="inspector-header"><div><span className="inspector-kicker">INSPECTOR</span><h3>Getting started</h3></div><button className="icon-button" title="Inspector help"><CircleHelp size={16} /></button></div><div className="inspector-divider"/><p className="inspector-copy">Your automaton properties and transition settings will appear here.</p><div className="getting-started"><div className="step-icon"><span>01</span></div><div><strong>Choose a model</strong><p>Start with a DFA, NFA, or ε-NFA.</p></div></div><div className="getting-started"><div className="step-icon"><span>02</span></div><div><strong>Add your states</strong><p>Mark start and accepting states.</p></div></div><div className="getting-started"><div className="step-icon"><span>03</span></div><div><strong>Define transitions</strong><p>Connect states with symbols.</p></div></div><div className="inspector-tip"><Activity size={16} /><p><strong>Need a starting point?</strong><br />Load an example automaton to explore the canvas.</p><button className="text-button" onClick={onExample}>Browse examples <ArrowRight size={14} /></button></div></aside>
-  </section>
 }
 
 function PlaceholderPage({ page }: { page: string }) {

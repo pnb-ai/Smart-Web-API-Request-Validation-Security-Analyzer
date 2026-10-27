@@ -1,7 +1,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { Button, Card, TextInput } from './components/ui'
+
+vi.mock('./components/AutomataWorkspace', () => ({
+  AutomataBuilder: () => <div>Your canvas is ready</div>,
+  AutomataSimulator: () => <div>Trace the machine</div>,
+}))
 
 describe('Automata Studio shell', () => {
   it('shows the builder empty state and navigation pages', () => {
@@ -11,11 +16,11 @@ describe('Automata Studio shell', () => {
     expect(screen.getByRole('button', { name: /HTTP Validator/ })).toBeInTheDocument()
   })
 
-  it('switches to a placeholder page from the sidebar', () => {
+  it('switches to the simulator page from the sidebar', () => {
     render(<App />)
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Simulator/ }))
     expect(screen.getByRole('heading', { name: 'Simulator' })).toBeInTheDocument()
-    expect(screen.getByText('Simulator is ready for its feature')).toBeInTheDocument()
+    expect(screen.getByText('Trace the machine')).toBeInTheDocument()
   })
 
   it('exposes accessible reusable design primitives', () => {
