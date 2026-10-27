@@ -6,12 +6,15 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.automata.engine import simulate
+from app.automata.equivalence import check_equivalence, check_equivalence_hopcroft_karp
 from app.automata.models import Automaton
+from app.automata.regex import compile_regex
 from app.automata.transformations import eliminate_epsilon, minimize_hopcroft, minimize_table, run_pipeline, subset_construction
 from app.automata.utilities import classify_automaton
 
 router = APIRouter(prefix="/api/automata", tags=["automata"])
 transform_router = APIRouter(prefix="/api", tags=["transformations"])
+equivalence_router = APIRouter(prefix="/api", tags=["equivalence"])
 
 
 class SimulationRequest(BaseModel):
@@ -27,6 +30,20 @@ class TransformRequest(BaseModel):
     automaton: Automaton
     operation: Literal["epsilon-elimination", "subset-construction", "minimize-table", "minimize-hopcroft", "pipeline"]
     minimizer: Literal["table", "hopcroft"] = "table"
+
+
+class EquivalenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    left: Automaton
+    right: Automaton
+    method: Literal["product-bfs", "hopcroft-karp"] = "product-bfs"
+
+
+class RegexRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pattern: str = Field(max_length=256)
 
 
 @router.post("/validate")
@@ -90,3 +107,24 @@ def transform_automaton(request: TransformRequest) -> dict[str, object]:
         "trace": [step.model_dump(mode="json") for step in transformed.trace],
         "intermediateAutomata": [],
     }
+
+
+@equivalence_router.post("/equivalence")
+def compare_automata(request: EquivalenceRequest) -> dict[str, object]:
+    """Compare two regular languages and return witnesses plus exploration trace."""
+    try:
+        check = check_equivalence_hopcroft_karp if request.method == "hopcroft-karp" else check_equivalence
+        result = check(request.left, request.right)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {**result.result, "trace": [step.model_dump(mode="json") for step in result.trace]}
+
+
+@equivalence_router.post("/regex/compile")
+def compile_regular_expression(request: RegexRequest) -> dict[str, object]:
+    """Compile a regular expression into the shared ε-NFA automaton schema."""
+    try:
+        automaton, trace = compile_regex(request.pattern)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {"automaton": automaton.model_dump(by_alias=True, mode="json"), "trace": [step.model_dump(mode="json") for step in trace]}

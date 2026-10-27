@@ -1,6 +1,7 @@
 """Automata models, simulation, and pure analysis algorithms."""
 
 from app.automata.engine import SimulationResult, simulate
+from app.automata.equivalence import check_equivalence, check_equivalence_hopcroft_karp
 from app.automata.models import Automaton, State, Transition
 from app.automata.transformations import eliminate_epsilon, minimize_hopcroft, minimize_table, run_pipeline, subset_construction
 from app.automata.utilities import (
@@ -20,6 +21,8 @@ __all__ = [
     "State",
     "Transition",
     "classify_automaton",
+    "check_equivalence",
+    "check_equivalence_hopcroft_karp",
     "complete_dfa",
     "dead_states",
     "eliminate_epsilon",
