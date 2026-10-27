@@ -16,7 +16,7 @@ const source: Automaton = {
   transitions: [{ from: 'q0', to: 'q1', symbols: ['ε', 'a'] }],
 }
 const nfa: Automaton = { ...source, type: 'NFA', transitions: [{ from: 'q0', to: 'q1', symbols: ['a'] }] }
-const dfa: Automaton = { ...nfa, type: 'DFA', states: [{ ...source.states[0], id: '{q0}', label: '{q0}' }, { ...source.states[1], id: '{q1}', label: '{q1}' }], transitions: [{ from: '{q0}', to: '{q1}', symbols: ['a'] }] }
+const dfa: Automaton = { ...nfa, type: 'DFA', states: [{ ...source.states[0], id: 'q0', label: 'q0' }, { ...source.states[1], id: 'q1', label: 'q1' }], transitions: [{ from: 'q0', to: 'q1', symbols: ['a'] }] }
 const minimized: Automaton = { ...dfa, states: [{ ...dfa.states[0], id: 'q0', label: 'start' }, { ...dfa.states[1], id: 'q1', label: 'accept' }], transitions: [{ from: 'q0', to: 'q1', symbols: ['a'] }] }
 
 const pipelineResponse = {
@@ -24,7 +24,7 @@ const pipelineResponse = {
   trace: [],
   intermediateAutomata: [
     { operation: 'epsilon-elimination', automaton: nfa, trace: [{ title: 'Compute ε-closure', explanation: 'Follow ε edges from q0.', data: { state: 'q0', closure: ['q0', 'q1'] } }] },
-    { operation: 'subset-construction', automaton: dfa, trace: [{ title: 'Process subset {q0}', explanation: 'Compute its destination set for each symbol.', data: { sourceState: '{q0}', subsetTable: [{ dfaState: '{q0}', nfaStates: ['q0'] }], transitions: [{ symbols: ['a'], destinationSet: ['q1'], destinationState: '{q1}', newState: true }] } }] },
+    { operation: 'subset-construction', automaton: dfa, trace: [{ title: 'Process subset q0', explanation: 'q0 represents the NFA subset {q0}. Compute its destination set for each symbol.', data: { sourceState: 'q0', sourceSet: ['q0'], subsetTable: [{ dfaState: 'q0', nfaStates: ['q0'] }], transitions: [{ symbols: ['a'], destinationSet: ['q1'], destinationState: 'q1', newState: true }] } }] },
     { operation: 'minimize-table', automaton: minimized, trace: [{ title: 'Distinguishability pass 1', explanation: 'Mark pairs that can be distinguished.', data: { newlyMarked: [{ states: ['q0', 'q1'], symbol: 'a' }] } }] },
   ],
 }
@@ -48,9 +48,11 @@ describe('Transform & Optimize workspace', () => {
     expect(await screen.findByText('ε-NFA → NFA')).toBeInTheDocument()
     expect(screen.getByText('Compute ε-closure')).toBeInTheDocument()
     expect(screen.getByText('2 → 2')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in After diagram' }))
+    expect(screen.getByText('150%')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next transformation' }))
     expect(await screen.findByText('NFA → DFA')).toBeInTheDocument()
-    expect(screen.getByText('Process subset {q0}')).toBeInTheDocument()
+    expect(screen.getByText('Process subset q0')).toBeInTheDocument()
   })
 
   it('sends the final automaton to Simulator', async () => {

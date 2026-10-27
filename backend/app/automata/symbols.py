@@ -7,6 +7,9 @@ EPSILON = "ε"
 # Classes are finite sets of input tokens. CRLF is one token consuming two
 # code points, which keeps HTTP grammar edges readable in diagrams.
 SYMBOL_CLASSES: dict[str, frozenset[str]] = {
+    # Regex Lab's dot and negated classes use a clear finite ASCII universe.
+    "ANY": frozenset(chr(code) for code in range(128)),
+    "DOT": frozenset(chr(code) for code in range(128) if code != 10),
     "DIGIT": frozenset(digits),
     "ALPHA": frozenset(ascii_letters),
     "HEXDIG": frozenset(hexdigits),

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { AlertTriangle, Check, LoaderCircle, Network, Sparkles } from 'lucide-react'
 import { useAutomataStore } from '../store/automataStore'
+import { useAppStore } from '../store/appStore'
 import type { Automaton, TraceStep } from '../types/automata'
 
 const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
@@ -26,8 +27,9 @@ const methodPattern = '(GET|POST|PUT|PATCH|DELETE)'
 
 export function EquivalenceWorkspace() {
   const workspaceAutomaton = useAutomataStore((state) => state.automaton)
+  const regexDraft = useAppStore((state) => state.regexDraft)
   const [left, setLeft] = useState<PanelValue>({ kind: 'http-rule', pattern: methodPattern })
-  const [right, setRight] = useState<PanelValue>({ kind: 'regex', pattern: methodPattern })
+  const [right, setRight] = useState<PanelValue>(() => ({ kind: 'regex', pattern: regexDraft || methodPattern }))
   const [method, setMethod] = useState<'product-bfs' | 'hopcroft-karp'>('product-bfs')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')

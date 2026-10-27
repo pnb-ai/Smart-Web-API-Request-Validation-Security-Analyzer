@@ -127,11 +127,14 @@ def subset_construction(automaton: Automaton) -> AlgorithmResult[Automaton]:
             for token in expand_symbol(symbol):
                 destination_map.setdefault((transition.from_, token), set()).add(transition.to)
 
-    def subset_name(subset: frozenset[str]) -> str:
-        members = _state_order(automaton, set(subset))
-        return "{" + ",".join(members) + "}" if members else "∅"
-
     subsets: list[frozenset[str]] = [start]
+    # Keep diagram labels short; the trace records each generated state's source subset.
+    subset_names: dict[frozenset[str], str] = {start: "q0"}
+
+    def subset_name(subset: frozenset[str]) -> str:
+        if subset not in subset_names:
+            subset_names[subset] = f"q{len(subset_names)}"
+        return subset_names[subset]
     queue: deque[frozenset[str]] = deque([start])
     seen = {start}
     subset_transitions: list[Transition] = []
@@ -170,7 +173,7 @@ def subset_construction(automaton: Automaton) -> AlgorithmResult[Automaton]:
             data={"sourceState": subset_name(current), "sourceSet": _state_order(automaton, set(current)), "transitions": rows, "queue": [subset_name(item) for item in queue], "processed": [subset_name(item) for item in subsets if item not in queue], "subsetTable": [{"dfaState": subset_name(item), "nfaStates": _state_order(automaton, set(item))} for item in subsets]},
         ))
 
-    # subset_transitions were built directly with canonical subset names above; collect alphabet labels.
+    # subset_transitions use compact ids; the trace maps each id back to its full subset.
     alphabet = list(dict.fromkeys(symbol for transition in subset_transitions for symbol in transition.symbols))
     dfa_states = [State(
         id=subset_name(subset),
@@ -183,7 +186,7 @@ def subset_construction(automaton: Automaton) -> AlgorithmResult[Automaton]:
     result = Automaton(type="DFA", states=dfa_states, alphabet=alphabet, transitions=subset_transitions)
     trace.append(TraceStep(
         title="Name reachable DFA states",
-        explanation="Each DFA state is exactly one reachable subset of NFA states. Accepting subsets contain at least one NFA accepting state.",
+        explanation="Each compactly named DFA state represents one reachable subset of NFA states. The mapping below keeps the full subset visible in the trace.",
         data={"states": [{"id": state.id, "nfaStates": _state_order(automaton, set(subset)), "isAccepting": state.isAccepting} for state, subset in zip(dfa_states, subsets)], "stateCount": len(dfa_states), "transitionCount": len(subset_transitions)},
     ))
     return AlgorithmResult(result, trace)
@@ -376,9 +379,8 @@ def _quotient(prepared: _MinimizationInput, blocks: list[set[str]], original_alp
         members = _ordered_by_ids(prepared.state_ids, block - ({sink} if sink else set()))
         if not members:
             continue
-        identifier = members[0] if len(members) == 1 else "{" + ",".join(members) + "}"
-        labels = [original_states[item].label for item in members]
-        label = labels[0] if len(members) == 1 else "{" + ",".join(members) + "}"
+        identifier = members[0]
+        label = identifier
         for member in block:
             block_name[member] = identifier
         members_states = [original_states[item] for item in members]

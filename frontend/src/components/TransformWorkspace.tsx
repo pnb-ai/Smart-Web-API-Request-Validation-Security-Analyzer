@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Check, GitCompareArrows, LoaderCircle, Send, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, GitCompareArrows, LoaderCircle, Send, Sparkles, ZoomIn, ZoomOut } from 'lucide-react'
 import { useAutomataStore } from '../store/automataStore'
 import { useAppStore } from '../store/appStore'
 import { useToast } from './ToastProvider'
@@ -146,6 +146,7 @@ function TraceDataTable({ rows, highlighted }: { rows: RecordRow[]; highlighted?
 function formatCell(value: unknown): string { return Array.isArray(value) ? value.map((item) => Array.isArray(item) ? `{${item.join(', ')}}` : String(item)).join(' · ') : typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? '—') }
 
 function AutomatonDiagram({ automaton, heading, caption }: { automaton: Automaton; heading: string; caption: string }) {
+  const [zoom, setZoom] = useState(1)
   const states = automaton.states
   const minX = Math.min(...states.map((state) => state.x), 0)
   const maxX = Math.max(...states.map((state) => state.x), 1)
@@ -154,7 +155,10 @@ function AutomatonDiagram({ automaton, heading, caption }: { automaton: Automato
   const point = (state: AutomatonState) => ({ x: 65 + ((state.x - minX) / Math.max(1, maxX - minX)) * 330, y: 45 + ((state.y - minY) / Math.max(1, maxY - minY)) * 145 })
   const locations = new Map(states.map((state) => [state.id, point(state)]))
   const parallel = new Map<string, number>()
-  return <div className="diagram-card"><div className="diagram-heading"><div><strong>{heading}</strong><small>{caption}</small></div><span>{automaton.transitions.length} edges</span></div><svg className="automaton-diagram" viewBox="0 0 460 250" role="img" aria-label={`${heading} automaton diagram`}><defs><marker id={`arrow-${heading.replaceAll(' ', '-')}`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="currentColor"/></marker></defs>
+  const viewWidth = 460 / zoom
+  const viewHeight = 250 / zoom
+  const viewBox = `${(460 - viewWidth) / 2} ${(250 - viewHeight) / 2} ${viewWidth} ${viewHeight}`
+  return <div className="diagram-card"><div className="diagram-heading"><div><strong>{heading}</strong><small>{caption}</small></div><div className="diagram-controls"><span>{automaton.transitions.length} edges</span><button className="icon-button" title={`Zoom in ${heading} diagram`} aria-label={`Zoom in ${heading} diagram`} onClick={() => setZoom((value) => Math.min(3, value + .5))} disabled={zoom >= 3}><ZoomIn size={14}/></button><button className="icon-button" title={`Zoom out ${heading} diagram`} aria-label={`Zoom out ${heading} diagram`} onClick={() => setZoom((value) => Math.max(1, value - .5))} disabled={zoom <= 1}><ZoomOut size={14}/></button><span className="zoom-level" title="Current diagram zoom">{Math.round(zoom * 100)}%</span></div></div><svg className="automaton-diagram" viewBox={viewBox} role="img" aria-label={`${heading} automaton diagram`}><defs><marker id={`arrow-${heading.replaceAll(' ', '-')}`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="currentColor"/></marker></defs>
     {automaton.transitions.map((edge, index) => { const from = locations.get(edge.from); const to = locations.get(edge.to); if (!from || !to) return null; const key = `${edge.from}:${edge.to}`; const offset = parallel.get(key) || 0; parallel.set(key, offset + 1); const d = edge.from === edge.to ? `M ${from.x - 18} ${from.y - 25} C ${from.x - 60} ${from.y - 85 - offset * 15}, ${from.x + 60} ${from.y - 85 - offset * 15}, ${from.x + 18} ${from.y - 25}` : `M ${from.x} ${from.y} Q ${(from.x + to.x) / 2} ${(from.y + to.y) / 2 - 22 - offset * 14} ${to.x} ${to.y}`; const labelX = edge.from === edge.to ? from.x : (from.x + to.x) / 2; const labelY = edge.from === edge.to ? from.y - 68 - offset * 12 : (from.y + to.y) / 2 - 14 - offset * 9; return <g key={`edge-${index}`} className="diagram-edge"><path d={d} markerEnd={`url(#arrow-${heading.replaceAll(' ', '-')})`}/><text x={labelX} y={labelY} textAnchor="middle">{edge.symbols.join(', ')}</text></g> })}
     {states.map((state) => { const { x, y } = locations.get(state.id)!; return <g key={state.id} className={`diagram-state ${state.isStart ? 'start' : ''}`}><circle cx={x} cy={y} r="25"/><circle className="accept-ring" cx={x} cy={y} r="20" visibility={state.isAccepting ? 'visible' : 'hidden'}/>{state.isStart && <path className="start-arrow" d={`M ${x - 53} ${y} L ${x - 28} ${y}`}/>}<text className="state-label" x={x} y={y - 1}>{state.label}</text><text className="state-id" x={x} y={y + 12}>{state.id}</text></g> })}</svg>
     {!states.length && <div className="diagram-empty">No states</div>}

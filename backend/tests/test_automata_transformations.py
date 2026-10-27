@@ -86,7 +86,9 @@ def test_subset_construction_creates_only_reachable_subsets_and_expected_count()
     converted = subset_construction(contains_ab_nfa())
     assert converted.result.type == "DFA"
     assert len(converted.result.states) == 4
-    assert {state.id for state in converted.result.states} == {"{q0}", "{q0,q1}", "{q0,q2}", "{q0,q1,q2}"}
+    assert {state.id for state in converted.result.states} == {"q0", "q1", "q2", "q3"}
+    mapping = converted.trace[-1].data["states"]
+    assert {tuple(item["nfaStates"]) for item in mapping} == {("q0",), ("q0", "q1"), ("q0", "q2"), ("q0", "q1", "q2")}
     assert all("queue" in step.data and "transitions" in step.data for step in converted.trace if step.title.startswith("Process subset"))
     assert_same_language(contains_ab_nfa(), converted.result)
 
@@ -120,6 +122,7 @@ def test_minimizers_remove_unreachable_states_and_merge_equivalent_states(minimi
     assert len(converted.result.states) == 3
     assert "unreachable" not in {state.id for state in converted.result.states}
     assert any(set(item["mergedStates"]) == {"q2", "q3"} for item in converted.trace[-1].data["equivalenceClasses"])
+    assert "{q2,q3}" not in {state.id for state in converted.result.states}
     assert converted.trace[0].data["removedStates"] == ["unreachable"]
     assert_same_language(source, converted.result)
 

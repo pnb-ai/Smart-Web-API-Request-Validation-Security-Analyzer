@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.automata.engine import simulate
 from app.automata.equivalence import check_equivalence, check_equivalence_hopcroft_karp
 from app.automata.models import Automaton
-from app.automata.regex import compile_regex
+from app.automata.regex import RegexParser, compile_regex
 from app.automata.transformations import eliminate_epsilon, minimize_hopcroft, minimize_table, run_pipeline, subset_construction
 from app.automata.utilities import classify_automaton
 
@@ -120,11 +120,34 @@ def compare_automata(request: EquivalenceRequest) -> dict[str, object]:
     return {**result.result, "trace": [step.model_dump(mode="json") for step in result.trace]}
 
 
-@equivalence_router.post("/regex/compile")
+@equivalence_router.post("/regex/convert")
+@equivalence_router.post("/regex/compile", include_in_schema=False)
 def compile_regular_expression(request: RegexRequest) -> dict[str, object]:
-    """Compile a regular expression into the shared ε-NFA automaton schema."""
+    """Compile a regex and return its complete automata conversion pipeline."""
     try:
         automaton, trace = compile_regex(request.pattern)
+        ast = RegexParser(request.pattern).parse()
+        pipeline = run_pipeline(automaton)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
-    return {"automaton": automaton.model_dump(by_alias=True, mode="json"), "trace": [step.model_dump(mode="json") for step in trace]}
+    intermediate = pipeline["intermediateAutomata"]
+    nfa = intermediate[0]["automaton"]
+    dfa = intermediate[1]["automaton"] if len(intermediate) > 1 else intermediate[0]["automaton"]
+    minimal = pipeline["result"]
+    return {
+        "automaton": automaton.model_dump(by_alias=True, mode="json"),
+        "ast": ast.json(),
+        "epsilonNfa": automaton.model_dump(by_alias=True, mode="json"),
+        "nfa": nfa.model_dump(by_alias=True, mode="json"),
+        "dfa": dfa.model_dump(by_alias=True, mode="json"),
+        "minimalDfa": minimal.model_dump(by_alias=True, mode="json"),
+        "trace": [step.model_dump(mode="json") for step in trace],
+        "pipelineSummary": [
+            {
+                "title": item["operation"],
+                "explanation": f"Built {item['automaton'].type} with {len(item['automaton'].states)} reachable states.",
+                "data": {"operation": item["operation"], "stateCount": len(item["automaton"].states), "traceStepCount": len(item["trace"])},
+            }
+            for item in intermediate
+        ],
+    }
