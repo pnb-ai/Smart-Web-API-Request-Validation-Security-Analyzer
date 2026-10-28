@@ -3,6 +3,10 @@ import type { Automaton, AutomatonState, Transition, AutomatonType } from '../ty
 
 type Snapshot = { automaton: Automaton; past: Automaton[]; future: Automaton[] }
 type AutomataState = Snapshot & {
+  simulationInput: string
+  setSimulationInput: (value: string) => void
+  simulationAutoRun: boolean
+  setSimulationAutoRun: (value: boolean) => void
   setAutomaton: (automaton: Automaton) => void
   addState: (x: number, y: number) => void
   updateState: (id: string, patch: Partial<AutomatonState>) => void
@@ -20,6 +24,10 @@ const initial: Snapshot = { automaton: emptyAutomaton(), past: [], future: [] }
 
 export const useAutomataStore = create<AutomataState>((set) => ({
   ...initial,
+  simulationInput: '',
+  setSimulationInput: (simulationInput) => set({ simulationInput }),
+  simulationAutoRun: false,
+  setSimulationAutoRun: (simulationAutoRun) => set({ simulationAutoRun }),
   setAutomaton: (automaton) => set((state) => snapshot(state, automaton)),
   addState: (x, y) => set((state) => {
     let index = 1

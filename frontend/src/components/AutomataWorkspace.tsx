@@ -111,7 +111,9 @@ function TransitionTable({ automaton, onEdit, onDelete, onAdd, onSelect }: { aut
 type SimResult = { status: 'ACCEPTED' | 'REJECTED'; accepted: boolean; reason: string; finalStates: string[]; trace: TraceStep[] }
 export function AutomataSimulator() {
   const automaton = useAutomataStore((s) => s.automaton)
-  const [input, setInput] = useState('')
+  const simulationAutoRun = useAutomataStore((s) => s.simulationAutoRun)
+  const setSimulationAutoRun = useAutomataStore((s) => s.setSimulationAutoRun)
+  const [input, setInput] = useState(() => useAutomataStore.getState().simulationInput)
   const [result, setResult] = useState<SimResult | null>(null)
   const [step, setStep] = useState(-1)
   const [speed, setSpeed] = useState(650)
@@ -119,6 +121,7 @@ export function AutomataSimulator() {
   const [batch, setBatch] = useState('')
   const [batchResults, setBatchResults] = useState<{ input: string; accepted: boolean; reason: string }[]>([])
   const [error, setError] = useState('')
+  const autoRunStarted = useRef(false)
   const active = useMemo(() => (result?.trace[step]?.data.nextStates as string[] | undefined) || (result?.trace[step]?.data.currentStates as string[] | undefined) || [], [result, step])
   const current = result?.trace[step]
   const pulse = useMemo(() => current?.data.transitionsFired && Array.isArray(current.data.transitionsFired) ? (current.data.transitionsFired as { from: string; to: string }[]).map((e) => `${e.from}:${e.to}`) : [], [current])
@@ -127,6 +130,13 @@ export function AutomataSimulator() {
   useEffect(() => { setNodes(toNodes(automaton, active)); setEdges(toEdges(automaton, pulse)) }, [automaton, active, pulse, setEdges, setNodes])
   useEffect(() => { if (!running) return; const timer = window.setInterval(() => setStep((n) => { if (!result || n >= result.trace.length - 1) { setRunning(false); return result?.trace.length ? result.trace.length - 1 : n } return n + 1 }), speed); return () => clearInterval(timer) }, [running, result, speed])
   const run = async (value = input) => { setRunning(false); setError(''); setResult(null); setStep(-1); try { const response = await fetch(`${API}/api/automata/simulate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ automaton, input: value }) }); const payload = await response.json(); if (!response.ok) throw new Error(payload.detail?.[0]?.msg || 'The automaton could not be simulated.'); setResult(payload); setStep(payload.trace.length ? 0 : -1) } catch (err) { setError(err instanceof TypeError ? 'Can’t reach the simulator API. Make sure the backend is running on port 8000.' : err instanceof Error ? err.message : 'The simulation could not be completed.') } }
+  useEffect(() => {
+    if (!simulationAutoRun) { autoRunStarted.current = false; return }
+    if (autoRunStarted.current) return
+    autoRunStarted.current = true
+    setSimulationAutoRun(false)
+    void run(input)
+  }, [simulationAutoRun, automaton])
   const runBatch = async () => { const lines = batch.split(/\r?\n/).filter((line) => line.length > 0); const results = await Promise.all(lines.map(async (value) => { try { const response = await fetch(`${API}/api/automata/simulate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ automaton, input: value }) }); const item = await response.json(); return { input: value, accepted: Boolean(item.accepted), reason: item.reason || 'Simulation unavailable' } } catch { return { input: value, accepted: false, reason: 'Backend unavailable' } } })); setBatchResults(results) }
   const position = typeof current?.data.index === 'number' ? current.data.index : current?.title.includes('ε-closure') ? 0 : -1
   const tapeTokens = input.match(/\r\n|[\s\S]/g) || []

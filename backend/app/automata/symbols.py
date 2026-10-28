@@ -17,6 +17,9 @@ SYMBOL_CLASSES: dict[str, frozenset[str]] = {
     "SP": frozenset({" "}),
     "CRLF": frozenset({"\r\n"}),
     "VCHAR": frozenset(ch for ch in printable if 0x21 <= ord(ch) <= 0x7E),
+    # RFC 9110 field values retain the historical obs-text octet range.
+    "OBS_TEXT": frozenset(chr(code) for code in range(0x80, 0x100)),
+    "URI_REGNAME": frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+,;="),
 }
 
 

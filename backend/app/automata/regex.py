@@ -16,6 +16,8 @@ SHORTHANDS = {
     "d": set(digits),
     "w": set(ascii_letters + digits + "_"),
     "s": {" ", "\t", "\n", "\r", "\f", "\v"},
+    "T": set(SYMBOL_CLASSES["TCHAR"]),
+    "g": set(SYMBOL_CLASSES["URI_REGNAME"]),
 }
 
 
