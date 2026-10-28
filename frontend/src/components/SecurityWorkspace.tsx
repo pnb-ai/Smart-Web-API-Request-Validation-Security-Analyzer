@@ -19,6 +19,7 @@ import {
 import { useAppStore } from '../store/appStore'
 import { useAutomataStore } from '../store/automataStore'
 import { useToast } from './ToastProvider'
+import { LoadingSkeleton } from './LoadingSkeleton'
 import type {
   RuleDiffResult,
   SecurityFinding,
@@ -124,8 +125,10 @@ const ruleDiffPresets = [
 ]
 
 export function SecurityWorkspace() {
+  const requestDraft = useAppStore((state) => state.requestDraft)
+  const setRequestDraft = useAppStore((state) => state.setRequestDraft)
   const [activeTab, setActiveTab] = useState<'analyzer' | 'diff' | 'trace'>('analyzer')
-  const [rawRequest, setRawRequest] = useState(attackSamples[1].text)
+  const [rawRequest, setRawRequest] = useState(requestDraft || attackSamples[1].text)
   const [report, setReport] = useState<SecurityReport | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState('')
@@ -449,6 +452,7 @@ export function SecurityWorkspace() {
                       const idx = Number(e.target.value)
                       if (!isNaN(idx) && attackSamples[idx]) {
                         setRawRequest(attackSamples[idx].text)
+                        setRequestDraft(attackSamples[idx].text)
                         void runAnalysis(attackSamples[idx].text)
                         notify(`Loaded ${attackSamples[idx].name}`)
                       }
@@ -473,7 +477,7 @@ export function SecurityWorkspace() {
                   ref={requestInputRef}
                   className="text-input sec-raw-textarea"
                   value={rawRequest}
-                  onChange={(e) => setRawRequest(e.target.value)}
+                  onChange={(e) => { setRawRequest(e.target.value); setRequestDraft(e.target.value) }}
                   placeholder="Paste HTTP request here..."
                   spellCheck={false}
                   onKeyDown={(e) => {
@@ -514,6 +518,7 @@ export function SecurityWorkspace() {
                 <span>{error}</span>
               </div>
             )}
+            {analyzing && !report && <LoadingSkeleton label="Analyzing request security"/>}
 
             {/* Highlighted Request Inspector */}
             {report && (

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { AlertTriangle, Check, LoaderCircle, Network, Sparkles } from 'lucide-react'
 import { useAutomataStore } from '../store/automataStore'
@@ -28,7 +28,9 @@ const methodPattern = '(GET|POST|PUT|PATCH|DELETE)'
 export function EquivalenceWorkspace() {
   const workspaceAutomaton = useAutomataStore((state) => state.automaton)
   const regexDraft = useAppStore((state) => state.regexDraft)
-  const [left, setLeft] = useState<PanelValue>({ kind: 'http-rule', pattern: methodPattern })
+  const equivalenceSeedFromBuilder = useAppStore((state) => state.equivalenceSeedFromBuilder)
+  const setEquivalenceSeedFromBuilder = useAppStore((state) => state.setEquivalenceSeedFromBuilder)
+  const [left, setLeft] = useState<PanelValue>(() => ({ kind: equivalenceSeedFromBuilder ? 'workspace' : 'http-rule', pattern: methodPattern }))
   const [right, setRight] = useState<PanelValue>(() => ({ kind: 'regex', pattern: regexDraft || methodPattern }))
   const [method, setMethod] = useState<'product-bfs' | 'hopcroft-karp'>('product-bfs')
   const [busy, setBusy] = useState(false)
@@ -36,6 +38,13 @@ export function EquivalenceWorkspace() {
   const [comparison, setComparison] = useState<CheckResponse | null>(null)
   const [runs, setRuns] = useState<[RunResult, RunResult] | null>(null)
   const [round, setRound] = useState(0)
+
+  useEffect(() => {
+    if (equivalenceSeedFromBuilder) {
+      setLeft({ kind: 'workspace', pattern: '' })
+      setEquivalenceSeedFromBuilder(false)
+    }
+  }, [equivalenceSeedFromBuilder, setEquivalenceSeedFromBuilder])
 
   const exploredPairs = useMemo<TraceStep[]>(() => {
     if (!comparison) return []

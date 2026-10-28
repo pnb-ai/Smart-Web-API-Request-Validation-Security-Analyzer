@@ -4,6 +4,7 @@ import { ArrowRight, LoaderCircle, Play, Send, Sparkles } from 'lucide-react'
 import { useAutomataStore } from '../store/automataStore'
 import { useAppStore } from '../store/appStore'
 import type { Automaton, TraceStep } from '../types/automata'
+import { LoadingSkeleton } from './LoadingSkeleton'
 
 const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 type Ast = { type: string; position: number; value?: unknown; children?: Ast[] }
@@ -70,6 +71,7 @@ export function RegexWorkspace() {
   return <motion.section className="regex-workspace" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
     <div className="regex-toolbar"><div><span className="inspector-kicker">REGULAR LANGUAGE PLAYGROUND</span><h2>Regex Lab</h2><p>Parse a pattern, watch Thompson’s construction, then explore its deterministic forms.</p></div><label className="regex-preset"><span>Start with a preset</span><select className="text-input" defaultValue="" onChange={(event) => { const preset = presets[Number(event.target.value)]; if (preset) setPattern(preset.pattern); event.target.value = '' }}><option value="" disabled>Choose a format…</option>{presets.map((item, i) => <option key={item.name} value={i}>{item.name}</option>)}</select></label></div>
     <div className="regex-editor-card"><div className="regex-card-heading"><div><span className="inspector-kicker">FULL-STRING MATCH</span><strong>Regular expression</strong></div><span className="regex-language">| · () · * + ? · {'{m,n}'} · [] · escapes · .</span></div><div className="regex-code-wrap"><div className="regex-code-highlight" aria-hidden="true">{highlightPattern(pattern, errorPosition(error))}{!pattern && <span className="regex-placeholder">(GET|POST) /users/\d+</span>}</div><input className={`text-input regex-main-input ${error ? 'regex-invalid' : ''}`} aria-label="Regular expression" aria-invalid={Boolean(error)} value={pattern} onChange={(event) => setPattern(event.target.value)} spellCheck={false} placeholder="" /></div><div className="regex-editor-footer"><small>{busy ? 'Parsing and converting…' : error ? 'Syntax issue' : 'Live parse'}{error && <span className="regex-error"> · {error}</span>}</small><small>Positions are zero-based · match entire input</small></div></div>
+    {busy && !converted && <LoadingSkeleton label="Compiling regex"/>}
     <div className="regex-presets">{presets.map((item) => <button key={item.name} className="regex-preset-chip" onClick={() => setPattern(item.pattern)}>{item.name}</button>)}</div>
     {converted && <>
       <div className="regex-overview">

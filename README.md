@@ -45,3 +45,55 @@ cd backend && pytest
 ```
 
 The backend allows the Vite development origin at `http://localhost:5173`. Automata algorithms are intentionally added feature by feature in `backend/app/automata`.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  UI[React workspaces] --> STORE[Zustand stores]
+  STORE --> LOCAL[(localStorage workspaces)]
+  UI --> API[FastAPI endpoints]
+  API --> REGEX[Regex Lab]
+  API --> AUTO[Automata algorithms]
+  AUTO --> MODELS[Pydantic automata and trace models]
+  API --> VALID[HTTP Validator and Security Analyzer]
+  REGEX --> AUTO
+```
+
+The browser owns editing, navigation, visualization, and locally saved workspace snapshots. FastAPI owns parsing, validation, simulation, automata conversion, minimization, language equivalence, and security matching. Each algorithm returns a trace that the UI can step through.
+
+## Theory to Feature mapping
+
+| Theory concept | Where to explore it |
+| --- | --- |
+| DFA/NFA/ε-NFA, start and accepting states, symbol classes | Automata Builder and Simulator |
+| Thompson construction and regular-expression parsing | Regex Lab |
+| Subset construction and ε-closure | Transform & Optimize |
+| Myhill–Nerode equivalence and DFA minimization | Transform & Optimize · table filling / Hopcroft |
+| Product automata, BFS, shortest distinguishing string | Equivalence Checker |
+| Token languages and maximal-munch scanning | Lexer |
+| Protocol constraints and formal request rules | HTTP Validator |
+| Regular-language signatures, normalization, defense in depth | Security Analyzer |
+
+Each page has a **Learn** panel with a short theory guide. The first visit also offers a five-step guided tour. Use **Run Demo Story** to compile a rule, analyze a malicious request, compare changed rules, inspect a counterexample, and minimize the automaton.
+
+## Workspace files and screenshots
+
+Use **Save** to snapshot the current automaton, regex draft, and request into the selected local workspace. **New** creates another workspace. The JSON buttons export or import a complete workspace file; imported data is shape-checked before it is loaded. Workspaces are stored in the browser's `localStorage` under `automata-studio-workspaces`.
+
+To capture current UI screenshots for documentation or bug reports:
+
+1. Start the backend and frontend using the commands above.
+2. Open `http://localhost:5173`, close the first-visit tour if it covers the target, and choose the page or demo state to capture.
+3. Use the browser's screenshot command at a consistent desktop viewport (for example 1440 × 1000), and save images under `docs/screenshots/` with descriptive names such as `builder.png`, `regex-lab.png`, and `security-analyzer.png`.
+4. For a light-theme capture, use the theme button before taking the screenshot. Screenshots are intentionally generated from the running UI rather than checked in as stale assets.
+
+## Browser smoke test
+
+With Python backend dependencies installed and Playwright's Chromium browser available, run:
+
+```bash
+npm run test:e2e --workspace frontend
+```
+
+The Playwright config starts the API and Vite server when they are not already running. Install the browser once with `npx playwright install chromium` if needed. The smoke tests cover page navigation, the Learn panel, one-click automaton handoff, the command palette, and the end-to-end demo story.

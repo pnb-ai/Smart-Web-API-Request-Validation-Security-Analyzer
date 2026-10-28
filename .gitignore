@@ -4,6 +4,9 @@ dist/
 __pycache__/
 *.egg-info/
 .pytest_cache/
+playwright-report/
+test-results/
+.playwright/
 .coverage
 .env
 *.py[cod]

@@ -12,13 +12,17 @@ export const pages = [
 ] as const
 
 export type PageId = typeof pages[number]['id']
-type AppState = { activePage: PageId; darkMode: boolean; regexDraft: string; setRegexDraft: (pattern: string) => void; setPage: (page: PageId) => void; toggleTheme: () => void }
+type AppState = { activePage: PageId; darkMode: boolean; regexDraft: string; requestDraft: string; equivalenceSeedFromBuilder: boolean; setEquivalenceSeedFromBuilder: (value: boolean) => void; setRegexDraft: (pattern: string) => void; setRequestDraft: (request: string) => void; setPage: (page: PageId) => void; toggleTheme: () => void }
 
 export const useAppStore = create<AppState>((set) => ({
   activePage: 'builder',
   darkMode: true,
   regexDraft: '',
+  requestDraft: '',
+  equivalenceSeedFromBuilder: false,
+  setEquivalenceSeedFromBuilder: (equivalenceSeedFromBuilder) => set({ equivalenceSeedFromBuilder }),
   setRegexDraft: (regexDraft) => set({ regexDraft }),
+  setRequestDraft: (requestDraft) => set({ requestDraft }),
   setPage: (activePage) => set({ activePage }),
   toggleTheme: () => set((state) => ({ darkMode: !state.darkMode })),
 }))

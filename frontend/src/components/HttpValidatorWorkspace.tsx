@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, Circle, ExternalLink, FileCheck2, LoaderCirc
 import { useAppStore } from '../store/appStore'
 import { useAutomataStore } from '../store/automataStore'
 import type { Automaton } from '../types/automata'
+import { LoadingSkeleton } from './LoadingSkeleton'
 
 const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 type Check = { id: string; title: string; status: 'pass' | 'fail' | 'warn'; message: string; rfc: string; position: { offset: number; line: number; column: number } | null; automatonId: string | null; input: string | null }
@@ -23,7 +24,9 @@ const sampleRequests = [
 ]
 
 export function HttpValidatorWorkspace() {
-  const [raw, setRaw] = useState(sampleRequests[0].text)
+  const requestDraft = useAppStore(state => state.requestDraft)
+  const setRequestDraft = useAppStore(state => state.setRequestDraft)
+  const [raw, setRaw] = useState(requestDraft || sampleRequests[0].text)
   const [report, setReport] = useState<Report | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -81,8 +84,8 @@ export function HttpValidatorWorkspace() {
     <div className="http-validator-heading"><div><span className="inspector-kicker">RFC 9112 · RFC 9110 · RFC 3986</span><h2>Validate a raw HTTP/1.1 request</h2><p>Finite automata check regular syntax. Separate protocol rules check framing, field relationships, and method semantics.</p></div><span className={`http-overall ${report?.overall === 'VALID' ? 'valid' : report ? 'invalid' : ''}`}>{report?.overall || (busy ? 'CHECKING' : 'READY')}</span></div>
     <div className="http-validator-grid">
       <div className="http-validator-main">
-        <section className="http-panel"><div className="http-panel-title"><div><span className="inspector-kicker">RAW MESSAGE</span><strong>Request editor</strong></div><label className="http-sample-select"><span>Load sample</span><select className="text-input" aria-label="Load sample" defaultValue="" onChange={event => { const item = sampleRequests[Number(event.target.value)]; if (item) setRaw(item.text); event.target.value = '' }}><option value="" disabled>Choose an example…</option>{sampleRequests.map((sample, index) => <option value={index} key={sample.name}>{sample.name}</option>)}</select></label></div>
-          <textarea ref={inputRef} aria-label="Raw HTTP request" className="text-input http-raw-editor" spellCheck={false} value={raw} onChange={event => setRaw(event.target.value)} onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void validate() } }} />
+        <section className="http-panel"><div className="http-panel-title"><div><span className="inspector-kicker">RAW MESSAGE</span><strong>Request editor</strong></div><label className="http-sample-select"><span>Load sample</span><select className="text-input" aria-label="Load sample" defaultValue="" onChange={event => { const item = sampleRequests[Number(event.target.value)]; if (item) { setRaw(item.text); setRequestDraft(item.text) }; event.target.value = '' }}><option value="" disabled>Choose an example…</option>{sampleRequests.map((sample, index) => <option value={index} key={sample.name}>{sample.name}</option>)}</select></label></div>
+          <textarea ref={inputRef} aria-label="Raw HTTP request" className="text-input http-raw-editor" spellCheck={false} value={raw} onChange={event => { setRaw(event.target.value); setRequestDraft(event.target.value) }} onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void validate() } }} />
           <div className="http-edit-footer"><span>Ctrl/⌘ + Enter to validate · offsets are zero-based</span><button className="button button-primary" onClick={() => void validate()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={14}/> : <FileCheck2 size={14}/>} Validate request</button></div>
         </section>
         {report && <section className="http-panel"><div className="http-panel-title"><div><span className="inspector-kicker">PARSED MESSAGE</span><strong>Request parts</strong></div><span className="http-muted">Hover a part for its byte range</span></div><div className="http-parts">{segments.map((part, index) => <span key={`${part.type}-${index}`} className={`http-part ${part.type}`} title={`${part.type} · offsets ${part.start}–${part.end}`}>{raw.slice(part.start, part.end) || (part.type === 'body' ? '(empty body)' : '')}</span>)}</div></section>}
@@ -97,7 +100,8 @@ export function HttpValidatorWorkspace() {
       </div>
       <aside className="http-panel http-checklist"><div className="http-panel-title"><div><span className="inspector-kicker">VALIDATION REPORT</span><strong>Rule checklist</strong></div>{report && <span className="http-count">{report.checks.filter(item => item.status === 'fail').length} errors · {report.checks.filter(item => item.status === 'warn').length} warnings</span>}</div>
         {error && <div className="http-friendly-error" role="alert"><AlertCircle size={15}/>{error}</div>}
-        {!report && !error && <div className="http-empty"><ShieldAlert size={22}/><strong>Waiting for a request</strong><span>Type a request or choose a sample to see its validation checks.</span></div>}
+        {busy && !report && <LoadingSkeleton label="Validating HTTP request"/>}
+        {!busy && !report && !error && <div className="http-empty"><ShieldAlert size={22}/><strong>Waiting for a request</strong><span>Type a request or choose a sample to see its validation checks.</span></div>}
         {report && <div className="http-check-list">{report.checks.map((check, index) => <motion.article key={`${check.id}-${index}`} className={`http-check ${check.status}`} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(index * 0.012, 0.3) }}>
           <div className="http-check-icon">{check.status === 'pass' ? <CheckCircle2 size={16}/> : check.status === 'fail' ? <AlertCircle size={16}/> : <Circle size={16}/>}</div><div className="http-check-body"><strong>{check.title}</strong><p>{check.message}</p><small>{check.rfc}{check.position ? ` · line ${check.position.line}, col ${check.position.column}` : ''}</small><div className="http-check-actions">{check.position && <button onClick={() => jumpTo(check)} title="Select the offending character in the editor">Jump to character</button>}{check.automatonId && report.automata[check.automatonId] && <button onClick={() => visualize(check)} title="Open this rule DFA in Simulator and run the exact checked text">Visualize DFA <ExternalLink size={11}/></button>}</div></div>
         </motion.article>)}</div>}
