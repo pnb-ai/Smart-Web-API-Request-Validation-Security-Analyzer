@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.automata.routes import equivalence_router, router as automata_router, transform_router
+from app.automata.routes import equivalence_router, lexer_router, router as automata_router, transform_router
 
 app = FastAPI(
     title="Smart Web/API Request Validation & Security Analyzer",
@@ -19,6 +19,7 @@ app.add_middleware(
 app.include_router(automata_router)
 app.include_router(transform_router)
 app.include_router(equivalence_router)
+app.include_router(lexer_router)
 
 
 @app.get("/health", tags=["system"])

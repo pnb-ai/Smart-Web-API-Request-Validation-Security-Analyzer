@@ -8,6 +8,7 @@ import { useAutomataStore } from './store/automataStore'
 import { TransformWorkspace } from './components/TransformWorkspace'
 import { EquivalenceWorkspace } from './components/EquivalenceWorkspace'
 import { RegexWorkspace } from './components/RegexWorkspace'
+import { LexerWorkspace } from './components/LexerWorkspace'
 
 const icons = { builder: Workflow, simulator: Play, transform: GitFork, equivalence: Network, regex: Regex, lexer: Braces, validator: ShieldCheck, security: ScanSearch }
 
@@ -43,7 +44,7 @@ function Workspace() {
         <motion.div key={activePage} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }}>
           <div className="page-eyebrow"><span className="eyebrow-line" /> FINITE AUTOMATA WORKBENCH <span className="version-chip">BETA</span></div>
           <div className="page-heading-row"><div><h1>{selected.label}</h1><p className="page-subtitle">Design, explore, and reason about formal languages.</p></div><button className="button button-primary" onClick={() => { if (activePage === 'builder') useAutomataStore.getState().setAutomaton({ type: 'DFA', states: [], alphabet: [], transitions: [] }); else setPage('builder') }}><Plus size={17} /> {activePage === 'builder' ? 'New automaton' : 'Open builder'}</button></div>
-          {activePage === 'builder' ? <AutomataBuilder /> : activePage === 'simulator' ? <AutomataSimulator /> : activePage === 'transform' ? <TransformWorkspace /> : activePage === 'equivalence' ? <EquivalenceWorkspace /> : activePage === 'regex' ? <RegexWorkspace /> : <PlaceholderPage page={selected.label} />}
+          {activePage === 'builder' ? <AutomataBuilder /> : activePage === 'simulator' ? <AutomataSimulator /> : activePage === 'transform' ? <TransformWorkspace /> : activePage === 'equivalence' ? <EquivalenceWorkspace /> : activePage === 'regex' ? <RegexWorkspace /> : activePage === 'lexer' ? <LexerWorkspace /> : <PlaceholderPage page={selected.label} />}
         </motion.div>
         <footer className="workspace-footer"><span><span className="online-dot" /> Local workspace</span><span>Automata Studio <b>·</b> 0.1.0</span></footer>
       </div>

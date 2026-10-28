@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.automata.engine import simulate
 from app.automata.equivalence import check_equivalence, check_equivalence_hopcroft_karp
 from app.automata.models import Automaton
+from app.automata.lexer import tokenize_request
 from app.automata.regex import RegexParser, compile_regex
 from app.automata.transformations import eliminate_epsilon, minimize_hopcroft, minimize_table, run_pipeline, subset_construction
 from app.automata.utilities import classify_automaton
@@ -15,6 +16,7 @@ from app.automata.utilities import classify_automaton
 router = APIRouter(prefix="/api/automata", tags=["automata"])
 transform_router = APIRouter(prefix="/api", tags=["transformations"])
 equivalence_router = APIRouter(prefix="/api", tags=["equivalence"])
+lexer_router = APIRouter(prefix="/api/lexer", tags=["lexer"])
 
 
 class SimulationRequest(BaseModel):
@@ -44,6 +46,21 @@ class RegexRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     pattern: str = Field(max_length=256)
+
+
+class TokenizeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(max_length=20_000)
+
+
+@lexer_router.post("/tokenize")
+def tokenize_http_request(request: TokenizeRequest) -> dict[str, object]:
+    """Tokenize request text using the combined token DFA."""
+    try:
+        return tokenize_request(request.text)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
 
 @router.post("/validate")
