@@ -14,9 +14,14 @@ export const pages = [
 export type PageId = typeof pages[number]['id']
 type AppState = { activePage: PageId; darkMode: boolean; regexDraft: string; requestDraft: string; equivalenceSeedFromBuilder: boolean; setEquivalenceSeedFromBuilder: (value: boolean) => void; setRegexDraft: (pattern: string) => void; setRequestDraft: (request: string) => void; setPage: (page: PageId) => void; toggleTheme: () => void }
 
+const readSavedTheme = () => {
+  try { return localStorage.getItem('automata-studio-theme') !== 'light' }
+  catch { return true }
+}
+
 export const useAppStore = create<AppState>((set) => ({
   activePage: 'builder',
-  darkMode: true,
+  darkMode: readSavedTheme(),
   regexDraft: '',
   requestDraft: '',
   equivalenceSeedFromBuilder: false,
@@ -24,5 +29,9 @@ export const useAppStore = create<AppState>((set) => ({
   setRegexDraft: (regexDraft) => set({ regexDraft }),
   setRequestDraft: (requestDraft) => set({ requestDraft }),
   setPage: (activePage) => set({ activePage }),
-  toggleTheme: () => set((state) => ({ darkMode: !state.darkMode })),
+  toggleTheme: () => set((state) => {
+    const darkMode = !state.darkMode
+    try { localStorage.setItem('automata-studio-theme', darkMode ? 'dark' : 'light') } catch { /* Theme still changes for this session if storage is unavailable. */ }
+    return { darkMode }
+  }),
 }))
