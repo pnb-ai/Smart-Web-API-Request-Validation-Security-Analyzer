@@ -16,6 +16,10 @@ SHORTHANDS = {
     "d": set(digits),
     "w": set(ascii_letters + digits + "_"),
     "s": {" ", "\t", "\n", "\r", "\f", "\v"},
+    "t": {"\t"},
+    "r": {"\r"},
+    "n": {"\n"},
+    "0": {"\x00"},
     "T": set(SYMBOL_CLASSES["TCHAR"]),
     "g": set(SYMBOL_CLASSES["URI_REGNAME"]),
 }
@@ -181,6 +185,11 @@ class RegexParser:
             raise RegexSyntaxError("Trailing backslash needs an escaped character", position)
         char = self.pattern[self.index]
         self.index += 1
+        if char == "x" and self.index + 2 <= len(self.pattern):
+            hex_digits = self.pattern[self.index:self.index + 2]
+            if all(c in "0123456789abcdefABCDEF" for c in hex_digits):
+                self.index += 2
+                return {chr(int(hex_digits, 16))}
         if char in SHORTHANDS:
             return set(SHORTHANDS[char])
         if char.isalnum():
