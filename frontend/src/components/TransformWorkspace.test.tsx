@@ -55,6 +55,33 @@ describe('Transform & Optimize workspace', () => {
     expect(screen.getByText('Process subset q0')).toBeInTheDocument()
   })
 
+  it('separates collapsed transformed coordinates and supports diagram pan and reset', async () => {
+    useAutomataStore.getState().setAutomaton({ ...source, states: source.states.map((state) => ({ ...state, x: 0, y: 0 })) })
+    const { container } = renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Run full pipeline' }))
+    await screen.findByText('ε-NFA → NFA')
+    const diagrams = container.querySelectorAll<SVGSVGElement>('.automaton-diagram')
+    const beforeDiagram = diagrams[0]
+    const beforeX = [...beforeDiagram.querySelectorAll<SVGCircleElement>('.diagram-state > circle:first-child')].map((circle) => circle.getAttribute('cx'))
+    expect(new Set(beforeX).size).toBe(2)
+    expect(beforeDiagram.querySelector('.diagram-edge path')).toHaveAttribute('marker-end', 'url(#arrow-Before)')
+    expect(beforeDiagram.querySelector('.diagram-state.start .start-arrow')).toHaveAttribute('marker-end', 'url(#arrow-Before)')
+
+    const afterDiagram = diagrams[1]
+    const initialView = afterDiagram.getAttribute('viewBox')
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in After diagram' }))
+    expect(afterDiagram.getAttribute('viewBox')).not.toBe(initialView)
+    const zoomedView = afterDiagram.getAttribute('viewBox')
+    fireEvent.keyDown(afterDiagram, { key: 'ArrowRight' })
+    expect(afterDiagram.getAttribute('viewBox')).not.toBe(zoomedView)
+    fireEvent.click(screen.getByRole('button', { name: 'Reset After diagram view' }))
+    expect(afterDiagram.getAttribute('viewBox')).toBe(initialView)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next transformation' }))
+    const dfaDiagram = container.querySelectorAll<SVGSVGElement>('.automaton-diagram')[1]
+    expect([...dfaDiagram.querySelectorAll('.diagram-state')].map((node) => node.querySelectorAll('text').length)).toEqual([1, 1])
+  })
+
   it('sends the final automaton to Simulator', async () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'Run full pipeline' }))

@@ -48,4 +48,18 @@ describe('HTTP Validator workspace', () => {
     render(<HttpValidatorWorkspace />)
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('validator service is unavailable'))
   })
+
+  it('loads an OpenAPI example and sends request and contract to the contract endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => report })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<HttpValidatorWorkspace />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Load sample' }), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Load example contract' }))
+    expect((screen.getByRole('textbox', { name: 'OpenAPI contract' }) as HTMLTextAreaElement).value).toContain('openapi: 3.1.0')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/http/validate-contract'), expect.objectContaining({ method: 'POST' })))
+    const call = fetchMock.mock.calls.at(-1)
+    const sent = JSON.parse((call?.[1] as RequestInit).body as string)
+    expect(sent.rawRequest).toContain('GET /api/users?page=1')
+    expect(sent.openApiSpec).toContain('Example Users API')
+  })
 })

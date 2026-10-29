@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('workspace navigation, learning panel, cross-feature flow, and guided demo', async ({ page }) => {
+test('workspace navigation, learning panel, and cross-feature flow', async ({ page }) => {
   await page.goto('/')
   const tour = page.getByRole('dialog', { name: 'Getting started tour' })
   if (await tour.isVisible().catch(() => false)) await tour.getByRole('button', { name: 'Skip tour' }).click()
@@ -15,14 +15,23 @@ test('workspace navigation, learning panel, cross-feature flow, and guided demo'
   await expect(page.getByRole('heading', { name: 'Simulator' })).toBeVisible()
   await page.getByRole('button', { name: 'Transform', exact: true }).last().click()
   await expect(page.getByRole('heading', { name: 'Transform & Optimize', exact: true }).first()).toBeVisible()
+  await page.getByRole('button', { name: 'Run full pipeline' }).click()
+  const afterDiagram = page.locator('.automaton-diagram').nth(1)
+  await expect(afterDiagram).toBeVisible()
+  await page.getByRole('button', { name: 'Zoom in After diagram' }).click()
+  const zoomedView = await afterDiagram.getAttribute('viewBox')
+  const diagramBounds = await afterDiagram.boundingBox()
+  if (diagramBounds) {
+    await page.mouse.move(diagramBounds.x + diagramBounds.width / 2, diagramBounds.y + diagramBounds.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(diagramBounds.x + diagramBounds.width / 2 + 35, diagramBounds.y + diagramBounds.height / 2 + 20)
+    await page.mouse.up()
+  }
+  await expect(afterDiagram).not.toHaveAttribute('viewBox', zoomedView || '')
   await page.getByRole('button', { name: 'Equivalence', exact: true }).last().click()
   await expect(page.getByRole('heading', { name: 'Do these rules accept the same language?' })).toBeVisible()
   await expect(page.getByText(/Uses the automaton currently in Builder/)).toBeVisible()
 
-  await page.getByRole('button', { name: 'Run Demo Story' }).click()
-  await expect(page.locator('.demo-status')).toContainText('Demo complete', { timeout: 60_000 })
-  await expect(page.locator('.demo-status')).toContainText('shortest witness: ad')
-  await expect(page.getByRole('heading', { name: 'Transform & Optimize', exact: true }).first()).toBeVisible()
 })
 
 test('command palette searches and opens a feature', async ({ page }) => {

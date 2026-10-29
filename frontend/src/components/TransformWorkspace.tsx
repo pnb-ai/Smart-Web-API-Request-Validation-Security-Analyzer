@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Check, GitCompareArrows, LoaderCircle, Send, Sparkles, ZoomIn, ZoomOut } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, GitCompareArrows, LoaderCircle, RotateCcw, Send, Sparkles, ZoomIn, ZoomOut } from 'lucide-react'
 import { useAutomataStore } from '../store/automataStore'
 import { useAppStore } from '../store/appStore'
 import { useToast } from './ToastProvider'
@@ -147,22 +147,55 @@ function TraceDataTable({ rows, highlighted }: { rows: RecordRow[]; highlighted?
 }
 function formatCell(value: unknown): string { return Array.isArray(value) ? value.map((item) => Array.isArray(item) ? `{${item.join(', ')}}` : String(item)).join(' · ') : typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? '—') }
 
+function diagramLayout(automaton: Automaton) {
+  const states = automaton.states
+  const outgoing = new Map(states.map((state) => [state.id, automaton.transitions.filter((edge) => edge.from === state.id).map((edge) => edge.to)]))
+  const ranks = new Map<string, number>()
+  const start = states.find((state) => state.isStart) || states[0]
+  if (start) {
+    ranks.set(start.id, 0)
+    const queue = [start.id]
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const from = queue[cursor]
+      for (const to of outgoing.get(from) || []) if (!ranks.has(to)) { ranks.set(to, (ranks.get(from) || 0) + 1); queue.push(to) }
+    }
+  }
+  const lastRank = Math.max(0, ...ranks.values())
+  states.forEach((state) => { if (!ranks.has(state.id)) ranks.set(state.id, lastRank + 1) })
+  const layers = new Map<number, AutomatonState[]>()
+  states.forEach((state) => { const layer = ranks.get(state.id) || 0; layers.set(layer, [...(layers.get(layer) || []), state]) })
+  const largestLayer = Math.max(1, ...[...layers.values()].map((layer) => layer.length))
+  const width = Math.max(460, 160 + Math.max(0, layers.size - 1) * 145)
+  const height = Math.max(250, 130 + (largestLayer - 1) * 105)
+  const positions = new Map<string, { x: number; y: number }>()
+  for (const [rank, layer] of layers) {
+    const firstY = (height - (layer.length - 1) * 105) / 2
+    layer.forEach((state, index) => positions.set(state.id, { x: 80 + rank * 145, y: firstY + index * 105 }))
+  }
+  return { positions, width, height }
+}
+
 function AutomatonDiagram({ automaton, heading, caption }: { automaton: Automaton; heading: string; caption: string }) {
   const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const dragPoint = useRef<{ x: number; y: number } | null>(null)
   const states = automaton.states
-  const minX = Math.min(...states.map((state) => state.x), 0)
-  const maxX = Math.max(...states.map((state) => state.x), 1)
-  const minY = Math.min(...states.map((state) => state.y), 0)
-  const maxY = Math.max(...states.map((state) => state.y), 1)
-  const point = (state: AutomatonState) => ({ x: 65 + ((state.x - minX) / Math.max(1, maxX - minX)) * 330, y: 45 + ((state.y - minY) / Math.max(1, maxY - minY)) * 145 })
-  const locations = new Map(states.map((state) => [state.id, point(state)]))
+  const { positions: locations, width: worldWidth, height: worldHeight } = diagramLayout(automaton)
   const parallel = new Map<string, number>()
-  const viewWidth = 460 / zoom
-  const viewHeight = 250 / zoom
-  const viewBox = `${(460 - viewWidth) / 2} ${(250 - viewHeight) / 2} ${viewWidth} ${viewHeight}`
-  return <div className="diagram-card"><div className="diagram-heading"><div><strong>{heading}</strong><small>{caption}</small></div><div className="diagram-controls"><span>{automaton.transitions.length} edges</span><button className="icon-button" title={`Zoom in ${heading} diagram`} aria-label={`Zoom in ${heading} diagram`} onClick={() => setZoom((value) => Math.min(3, value + .5))} disabled={zoom >= 3}><ZoomIn size={14}/></button><button className="icon-button" title={`Zoom out ${heading} diagram`} aria-label={`Zoom out ${heading} diagram`} onClick={() => setZoom((value) => Math.max(1, value - .5))} disabled={zoom <= 1}><ZoomOut size={14}/></button><span className="zoom-level" title="Current diagram zoom">{Math.round(zoom * 100)}%</span></div></div><svg className="automaton-diagram" viewBox={viewBox} role="img" aria-label={`${heading} automaton diagram`}><defs><marker id={`arrow-${heading.replaceAll(' ', '-')}`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="currentColor"/></marker></defs>
-    {automaton.transitions.map((edge, index) => { const from = locations.get(edge.from); const to = locations.get(edge.to); if (!from || !to) return null; const key = `${edge.from}:${edge.to}`; const offset = parallel.get(key) || 0; parallel.set(key, offset + 1); const d = edge.from === edge.to ? `M ${from.x - 18} ${from.y - 25} C ${from.x - 60} ${from.y - 85 - offset * 15}, ${from.x + 60} ${from.y - 85 - offset * 15}, ${from.x + 18} ${from.y - 25}` : `M ${from.x} ${from.y} Q ${(from.x + to.x) / 2} ${(from.y + to.y) / 2 - 22 - offset * 14} ${to.x} ${to.y}`; const labelX = edge.from === edge.to ? from.x : (from.x + to.x) / 2; const labelY = edge.from === edge.to ? from.y - 68 - offset * 12 : (from.y + to.y) / 2 - 14 - offset * 9; return <g key={`edge-${index}`} className="diagram-edge"><path d={d} markerEnd={`url(#arrow-${heading.replaceAll(' ', '-')})`}/><text x={labelX} y={labelY} textAnchor="middle">{edge.symbols.join(', ')}</text></g> })}
-    {states.map((state) => { const { x, y } = locations.get(state.id)!; return <g key={state.id} className={`diagram-state ${state.isStart ? 'start' : ''}`}><circle cx={x} cy={y} r="25"/><circle className="accept-ring" cx={x} cy={y} r="20" visibility={state.isAccepting ? 'visible' : 'hidden'}/>{state.isStart && <path className="start-arrow" d={`M ${x - 53} ${y} L ${x - 28} ${y}`}/>}<text className="state-label" x={x} y={y - 1}>{state.label}</text><text className="state-id" x={x} y={y + 12}>{state.id}</text></g> })}</svg>
+  const directedCounts = new Map<string, number>()
+  automaton.transitions.forEach((edge) => { const key = String(edge.from) + String.fromCharCode(58) + String(edge.to); directedCounts.set(key, (directedCounts.get(key) || 0) + 1) })
+  const viewWidth = worldWidth / zoom
+  const viewHeight = worldHeight / zoom
+  const maxPanX = (worldWidth - viewWidth) / 2
+  const maxPanY = (worldHeight - viewHeight) / 2
+  const viewX = Math.max(0, Math.min(worldWidth - viewWidth, (worldWidth - viewWidth) / 2 - pan.x))
+  const viewY = Math.max(0, Math.min(worldHeight - viewHeight, (worldHeight - viewHeight) / 2 - pan.y))
+  const viewBox = viewX + ' ' + viewY + ' ' + viewWidth + ' ' + viewHeight
+  const panBy = (dx: number, dy: number) => setPan((current) => ({ x: Math.max(-maxPanX, Math.min(maxPanX, current.x + dx)), y: Math.max(-maxPanY, Math.min(maxPanY, current.y + dy)) }))
+  const resetView = () => { setZoom(1); setPan({ x: 0, y: 0 }) }
+  return <div className="diagram-card"><div className="diagram-heading"><div><strong>{heading}</strong><small>{caption} · drag to pan</small></div><div className="diagram-controls"><span>{automaton.transitions.length} edges</span><button className="icon-button" title={`Zoom in ${heading} diagram`} aria-label={`Zoom in ${heading} diagram`} onClick={() => setZoom((value) => Math.min(3, value + .5))} disabled={zoom >= 3}><ZoomIn size={14}/></button><button className="icon-button" title={`Zoom out ${heading} diagram`} aria-label={`Zoom out ${heading} diagram`} onClick={() => setZoom((value) => Math.max(1, value - .5))} disabled={zoom <= 1}><ZoomOut size={14}/></button><button className="icon-button" title={`Reset ${heading} diagram view`} aria-label={`Reset ${heading} diagram view`} onClick={resetView} disabled={zoom === 1 && pan.x === 0 && pan.y === 0}><RotateCcw size={13}/></button><span className="zoom-level" title="Current diagram zoom">{Math.round(zoom * 100)}%</span></div></div><svg className="automaton-diagram" viewBox={viewBox} role="img" aria-label={heading + ' automaton diagram. Drag to pan, or focus and use arrow keys to pan.'} tabIndex={0} onPointerDown={(event) => { if (event.button === 0) { dragPoint.current = { x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId) } }} onPointerMove={(event) => { if (!dragPoint.current) return; const rect = event.currentTarget.getBoundingClientRect(); const dx = event.clientX - dragPoint.current.x; const dy = event.clientY - dragPoint.current.y; dragPoint.current = { x: event.clientX, y: event.clientY }; panBy(dx * viewWidth / rect.width, dy * viewHeight / rect.height) }} onPointerUp={(event) => { dragPoint.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId) }} onPointerCancel={() => { dragPoint.current = null }} onKeyDown={(event) => { const amount = 35 / zoom; if (event.key === 'ArrowLeft') { event.preventDefault(); panBy(-amount, 0) } else if (event.key === 'ArrowRight') { event.preventDefault(); panBy(amount, 0) } else if (event.key === 'ArrowUp') { event.preventDefault(); panBy(0, -amount) } else if (event.key === 'ArrowDown') { event.preventDefault(); panBy(0, amount) } }}><defs><marker id={`arrow-${heading.replaceAll(' ', '-')}`} markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--soft)"/></marker></defs>
+    {automaton.transitions.map((edge, index) => { const from = locations.get(edge.from); const to = locations.get(edge.to); if (!from || !to) return null; const key = String(edge.from) + String.fromCharCode(58) + String(edge.to); const offset = parallel.get(key) || 0; parallel.set(key, offset + 1); const loop = edge.from === edge.to; let d: string; let labelX: number; let labelY: number; if (loop) { d = 'M ' + (from.x - 18) + ' ' + (from.y - 25) + ' C ' + (from.x - 60) + ' ' + (from.y - 85 - offset * 18) + ', ' + (from.x + 60) + ' ' + (from.y - 85 - offset * 18) + ', ' + (from.x + 18) + ' ' + (from.y - 25); labelX = from.x; labelY = from.y - 68 - offset * 15 } else { const dx = to.x - from.x; const dy = to.y - from.y; const length = Math.max(1, Math.hypot(dx, dy)); const normalX = -dy / length; const normalY = dx / length; const reverseKey = String(edge.to) + String.fromCharCode(58) + String(edge.from); const hasReverse = directedCounts.has(reverseKey); const count = directedCounts.get(key) || 1; const curve = hasReverse ? (offset + 1) * 22 : (offset - (count - 1) / 2) * 28; const cx = (from.x + to.x) / 2 + normalX * curve; const cy = (from.y + to.y) / 2 + normalY * curve; const startLength = Math.max(1, Math.hypot(cx - from.x, cy - from.y)); const endLength = Math.max(1, Math.hypot(to.x - cx, to.y - cy)); const sx = from.x + (cx - from.x) / startLength * 28; const sy = from.y + (cy - from.y) / startLength * 28; const ex = to.x - (to.x - cx) / endLength * 28; const ey = to.y - (to.y - cy) / endLength * 28; d = 'M ' + sx + ' ' + sy + ' Q ' + cx + ' ' + cy + ' ' + ex + ' ' + ey; labelX = (sx + 2 * cx + ex) / 4; labelY = (sy + 2 * cy + ey) / 4 - 7 } return <g key={`edge-${index}`} className="diagram-edge"><path d={d} markerEnd={`url(#arrow-${heading.replaceAll(' ', '-')})`}/><text x={labelX} y={labelY} textAnchor="middle">{edge.symbols.join(', ')}</text></g> })}
+    {states.map((state) => { const { x, y } = locations.get(state.id)!; return <g key={state.id} className={`diagram-state ${state.isStart ? 'start' : ''}`}><circle cx={x} cy={y} r="25"/><circle className="accept-ring" cx={x} cy={y} r="20" visibility={state.isAccepting ? 'visible' : 'hidden'}/>{state.isStart && <path className="start-arrow" d={`M ${x - 53} ${y} L ${x - 28} ${y}`} markerEnd={`url(#arrow-${heading.replaceAll(' ', '-')})`}/>}<text className="state-label" x={x} y={state.label === state.id ? y + 4 : y - 3}>{state.label === state.id ? state.id : state.label}</text>{state.label !== state.id && <text className="state-id" x={x} y={y + 12}>{state.id}</text>}</g> })}</svg>
     {!states.length && <div className="diagram-empty">No states</div>}
   </div>
 }

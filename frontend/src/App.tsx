@@ -61,8 +61,6 @@ function Workspace() {
   const [tourStep, setTourStep] = useState<number | null>(null)
   const [workspaceDialog, setWorkspaceDialog] = useState(false)
   const [workspaceName, setWorkspaceName] = useState('')
-  const [demoBusy, setDemoBusy] = useState(false)
-  const [demoMessage, setDemoMessage] = useState('')
   const paletteRef = useRef<HTMLInputElement>(null)
   const dialogRef = useRef<HTMLElement>(null)
   const importRef = useRef<HTMLInputElement>(null)
@@ -108,58 +106,18 @@ function Workspace() {
     const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })); link.download = `${data.name.replace(/[^\w-]+/g, '-')}.json`; link.click(); URL.revokeObjectURL(link.href)
   }
   const importFile = async (file?: File) => { if (!file) return; try { const workspace = importWorkspace(JSON.parse(await file.text())); loadSaved(workspace) } catch (error) { notify(error instanceof Error ? error.message : 'Could not import this workspace file.') }; if (importRef.current) importRef.current.value = '' }
-  const waitForDemoBeat = () => new Promise((resolve) => window.setTimeout(resolve, 1100))
-  const runDemo = async () => {
-    setDemoBusy(true); setDemoMessage('1/5 · Writing a regular-expression rule…')
-    const api = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
-    try {
-      const oldRule = '(ab|ac)'
-      const changedRule = '(ab|ac|ad)'
-      const compiledResponse = await fetch(`${api}/api/regex/convert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pattern: oldRule }) })
-      const compiled = await compiledResponse.json()
-      if (!compiledResponse.ok) throw new Error('The Regex Lab could not compile the demo rule.')
-      setRegexDraft(oldRule)
-      setPage('regex')
-      await waitForDemoBeat()
-      setDemoMessage('2/5 · Checking a malicious request…')
-      const request = 'GET /search?q=%3Cscript%3Ealert(1)%3C/script%3E HTTP/1.1\r\nHost: demo.local\r\n\r\n'
-      const securityResponse = await fetch(`${api}/api/security/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rawRequest: request }) })
-      const securityReport = await securityResponse.json()
-      if (!securityResponse.ok || !securityReport.findings?.length) throw new Error('The Security Analyzer did not flag the demo request as expected.')
-      setRequestDraft(request)
-      setPage('security')
-      await waitForDemoBeat()
-      setDemoMessage('3/5 · Updating the rule and finding the counterexample…')
-      const diffResponse = await fetch(`${api}/api/security/rule-diff`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oldPattern: oldRule, newPattern: changedRule, testPayloads: ['ab', 'ac', 'ad', 'aa'] }) })
-      const diff = await diffResponse.json()
-      if (!diffResponse.ok || diff.equivalent || !diff.counterexample) throw new Error('The Equivalence Checker did not find the expected rule counterexample.')
-      setRegexDraft(changedRule)
-      setPage('equivalence')
-      setDemoMessage(`4/5 · Counterexample found: ${diff.counterexample || 'none'}. Minimizing the automaton…`)
-      await waitForDemoBeat()
-      const minimizedResponse = await fetch(`${api}/api/transform`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ automaton: compiled.minimalDfa, operation: 'minimize-hopcroft', minimizer: 'hopcroft' }) })
-      const minimized = await minimizedResponse.json()
-      if (!minimizedResponse.ok) throw new Error('The demo automaton could not be minimized.')
-      setAutomaton(minimized.result || compiled.minimalDfa)
-      setPage('transform')
-      await waitForDemoBeat()
-      setDemoMessage(`5/5 · Demo complete. Rule changed from ${oldRule} to ${changedRule}; ${diff.counterexample ? `shortest witness: ${diff.counterexample}` : 'no witness'}; minimized to ${(minimized.result || compiled.minimalDfa).states.length} states.`)
-    } catch (error) { setDemoMessage(error instanceof TypeError ? 'Demo needs the backend. Start it on port 8000 and retry.' : error instanceof Error ? error.message : 'The demo stopped unexpectedly.') }
-    finally { setDemoBusy(false) }
-  }
-
   return <div className="app-shell">
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark"><Binary size={21} /></div><div><strong>Automata<span>Studio</span></strong><small>FORMAL SYSTEMS LAB</small></div></div>
       <label className="project-switcher" title="Switch between saved workspaces"><div className="project-icon"><Network size={17} /></div><span><strong>Workspace</strong><select aria-label="Saved workspace" value={activeId} onChange={(event) => { if (event.target.value === '__create__') { setWorkspaceDialog(true); return } const workspace = load(event.target.value); if (workspace) loadSaved(workspace) }}>{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}<option value="__create__">＋ Create workspace…</option></select><small>{workspaces.length} saved workspace{workspaces.length === 1 ? '' : 's'}</small></span><ChevronDown size={15} /></label>
       <div className="workspace-tools"><button onClick={() => { save(snapshot()); notify('Workspace saved locally') }} title="Save this workspace" aria-label="Save"><Save size={14}/> <span>Save</span></button><button onClick={() => setWorkspaceDialog(true)} title="Create a workspace" aria-label="New"><Plus size={14}/> <span>New</span></button><button onClick={exportWorkspace} title="Export workspace JSON" aria-label="Export workspace JSON"><FileDown size={14}/></button><button onClick={() => importRef.current?.click()} title="Import workspace JSON" aria-label="Import workspace JSON"><FileUp size={14}/></button><input ref={importRef} type="file" accept=".json,application/json" hidden onChange={(event) => void importFile(event.target.files?.[0])}/></div>
       <nav aria-label="Main navigation">{['WORKSPACE', 'ANALYSIS', 'SECURITY'].map((group) => <div className="nav-group" key={group}><p className="nav-heading">{group}</p>{pages.filter((page) => page.group === group).map((page) => { const Icon = icons[page.id]; return <button key={page.id} className={`nav-link ${page.id === activePage ? 'active' : ''}`} onClick={() => setPage(page.id)} aria-current={page.id === activePage ? 'page' : undefined}><Icon size={17} /><span>{page.label}</span>{page.id === activePage && <span className="active-dot" />}</button> })}</div>)}</nav>
-      <div className="sidebar-bottom"><button className="demo-button" onClick={() => void runDemo()} disabled={demoBusy}><Play size={14}/>{demoBusy ? 'Running demo…' : 'Run Demo Story'}</button><button className="help-link" onClick={() => setHelp(true)}><CircleHelp size={16}/> Help & shortcuts <span>?</span></button><div className="profile"><div className="avatar">A</div><div><strong>Local workspace</strong><small>{automaton.states.length} states in machine</small></div></div></div>
+      <div className="sidebar-bottom"><button className="help-link" onClick={() => setHelp(true)}><CircleHelp size={16}/> Help & shortcuts <span>?</span></button><div className="profile"><div className="avatar">A</div><div><strong>Local workspace</strong><small>{automaton.states.length} states in machine</small></div></div></div>
     </aside>
     <main className="main-area">
       <header className="topbar"><div className="breadcrumbs"><span>Workspace</span><ArrowRight size={13} /><strong>{selected.label}</strong></div><div className="top-actions"><span className="save-status"><Check size={14} /> Local workspace</span><button className="icon-button" aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>{darkMode ? <Sun size={17} /> : <Moon size={17} />}</button><button className="icon-button" aria-label="Open command palette" title="Command palette (Ctrl+K)" onClick={() => { setPalette(true); setPaletteIndex(0) }}><Command size={17}/></button><button className="icon-button" aria-label="Learn about this page" title="Learn about this page" onClick={() => setLearn((open) => !open)}><BookOpen size={17}/></button><button className="icon-button shortcut-button" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (Ctrl+/)" onClick={() => setHelp(true)}><Keyboard size={17} /></button></div></header>
       <div className="content-wrap"><motion.div key={activePage} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }}>
-        <div className="page-eyebrow"><span className="eyebrow-line" /> FINITE AUTOMATA WORKBENCH <span className="version-chip">BETA</span></div>
+        <div className="page-eyebrow"><span className="eyebrow-line" /> FINITE AUTOMATA WORKBENCH</div>
         <div className="page-heading-row"><div><h1>{selected.label}</h1><p className="page-subtitle">Design, explore, and reason about formal languages.</p></div><div className="page-actions">{automaton.states.length > 0 && <><button className="button button-secondary" onClick={() => { setPage('simulator'); notify('Automaton opened in Simulator') }}><Play size={14}/> Simulator</button><button className="button button-secondary" onClick={() => setPage('transform')}><GitFork size={14}/> Transform</button><button className="button button-secondary" onClick={() => { useAppStore.getState().setEquivalenceSeedFromBuilder(true); setPage('equivalence') }}><Network size={14}/> Equivalence</button></>}<button className="button button-primary" onClick={() => { if (activePage === 'builder') setAutomaton({ type: 'DFA', states: [], alphabet: [], transitions: [] }); else setPage('builder') }}><Plus size={17} /> {activePage === 'builder' ? 'New automaton' : 'Open builder'}</button></div></div>
         <ErrorBoundary><Suspense fallback={<LoadingSkeleton label={`Loading ${selected.label}`}/>}>{activePage === 'builder' ? <AutomataBuilder /> : activePage === 'simulator' ? <AutomataSimulator /> : activePage === 'transform' ? <TransformWorkspace /> : activePage === 'equivalence' ? <EquivalenceWorkspace /> : activePage === 'regex' ? <RegexWorkspace /> : activePage === 'lexer' ? <LexerWorkspace /> : activePage === 'validator' ? <HttpValidatorWorkspace /> : <SecurityWorkspace />}</Suspense></ErrorBoundary>
       </motion.div><footer className="workspace-footer"><span><span className="online-dot" /> Local workspace</span><span>Automata Studio <b>·</b> 0.2.0</span></footer></div>
@@ -169,7 +127,6 @@ function Workspace() {
     {help && <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setHelp(false) }}><section ref={dialogRef} className="modal-card" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title"><div className="modal-heading"><h2 id="shortcuts-title">Keyboard shortcuts</h2><button className="icon-button" aria-label="Close shortcuts" onClick={() => setHelp(false)}><X size={17}/></button></div><dl className="shortcut-list"><div><dt>Open command palette</dt><dd>Ctrl / ⌘ + K</dd></div><div><dt>Show shortcuts</dt><dd>Ctrl / ⌘ + /</dd></div><div><dt>Close dialog or clear focus</dt><dd>Esc</dd></div><div><dt>Undo / redo in Builder</dt><dd>Ctrl / ⌘ + Z / Shift + Z</dd></div></dl></section></div>}
     {workspaceDialog && <div className="overlay"><form ref={(element) => { dialogRef.current = element }} className="modal-card" role="dialog" aria-modal="true" onSubmit={(event) => { event.preventDefault(); create(workspaceName, snapshot()); setWorkspaceDialog(false); setWorkspaceName(''); notify('New workspace created') }}><div className="modal-heading"><h2>New workspace</h2><button type="button" className="icon-button" aria-label="Close" onClick={() => setWorkspaceDialog(false)}><X size={17}/></button></div><label className="field-wrap"><span className="field-label">Workspace name</span><input autoFocus className="text-input" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} placeholder="e.g. HTTP request rules"/></label><button className="button button-primary" type="submit">Create workspace</button></form></div>}
     {tourStep !== null && <div ref={(element) => { dialogRef.current = element }} className="tour-card" role="dialog" aria-label="Getting started tour" aria-modal="true"><div className="modal-heading"><span className="inspector-kicker">GETTING STARTED · {tourStep + 1}/5</span><button className="icon-button" aria-label="Close tour" onClick={() => { setTourStep(null); localStorage.setItem('automata-studio-tour-v1', 'done') }}><X size={16}/></button></div><h2>{tour[tourStep][0]}</h2><p>{tour[tourStep][1]}</p><div className="tour-actions"><button className="button button-secondary" onClick={() => { setTourStep(null); localStorage.setItem('automata-studio-tour-v1', 'done') }}>Skip tour</button><button className="button button-primary" onClick={() => { if (tourStep === 4) { setPage(tourPages[tourStep]); setTourStep(null); localStorage.setItem('automata-studio-tour-v1', 'done') } else { setPage(tourPages[tourStep + 1]); setTourStep((step) => (step ?? 0) + 1) } }}>{tourStep === 4 ? 'Finish' : 'Next'}</button></div></div>}
-    {demoMessage && <div className="demo-status" role="status"><span>{demoMessage}</span><button className="icon-button" aria-label="Dismiss demo status" onClick={() => setDemoMessage('')}><X size={15}/></button></div>}
   </div>
 }
 

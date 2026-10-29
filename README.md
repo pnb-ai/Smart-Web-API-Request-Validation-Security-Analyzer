@@ -73,9 +73,16 @@ The browser owns editing, navigation, visualization, and locally saved workspace
 | Product automata, BFS, shortest distinguishing string | Equivalence Checker |
 | Token languages and maximal-munch scanning | Lexer |
 | Protocol constraints and formal request rules | HTTP Validator |
+| OpenAPI operation, parameter, security declaration, and JSON Schema checks | HTTP Validator · OpenAPI contract |
 | Regular-language signatures, normalization, defense in depth | Security Analyzer |
 
-Each page has a **Learn** panel with a short theory guide. The first visit also offers a five-step guided tour. Use **Run Demo Story** to compile a rule, analyze a malicious request, compare changed rules, inspect a counterexample, and minimize the automaton.
+Each page has a **Learn** panel with a short theory guide. The first visit also offers a five-step guided tour. Features can be explored independently using the guided tour, sample inputs, and one-click automaton handoffs.
+
+### OpenAPI contract validation
+
+The HTTP Validator can additionally validate requests against OpenAPI 3.0 and 3.1 documents in JSON or YAML. Paste a contract or import a `.json`, `.yaml`, or `.yml` file, then enable **Enforce contract**. The report combines the existing HTTP protocol checks with operation/path matching, declared path/query/header/cookie parameter checks, required request bodies, content types, JSON body schemas, and declared security credential presence. Local `$ref` references are supported; remote references are blocked. Parameter serialization currently covers common simple/form/delimited styles rather than every OpenAPI serialization combination. Non-JSON body schemas are not inspected. Authentication checks only establish whether a credential is present in the expected location/format; they do not verify signatures, token expiry, scopes, authorization, or credentials against a live service. This is a static request checker, not a proxy or a live API call.
+
+The endpoint is `POST /api/http/validate-contract`, with `rawRequest`, `openApiSpec`, and optional HTTP validator settings. OpenAPI contract analysis complements the raw HTTP checks; it does not replace server-side validation or security controls in the actual API.
 
 ## Workspace files and screenshots
 
@@ -84,7 +91,7 @@ Use **Save** to snapshot the current automaton, regex draft, and request into th
 To capture current UI screenshots for documentation or bug reports:
 
 1. Start the backend and frontend using the commands above.
-2. Open `http://localhost:5173`, close the first-visit tour if it covers the target, and choose the page or demo state to capture.
+2. Open `http://localhost:5173`, close the first-visit tour if it covers the target, and choose the page to capture.
 3. Use the browser's screenshot command at a consistent desktop viewport (for example 1440 × 1000), and save images under `docs/screenshots/` with descriptive names such as `builder.png`, `regex-lab.png`, and `security-analyzer.png`.
 4. For a light-theme capture, use the theme button before taking the screenshot. Screenshots are intentionally generated from the running UI rather than checked in as stale assets.
 
@@ -96,4 +103,4 @@ With Python backend dependencies installed and Playwright's Chromium browser ava
 npm run test:e2e --workspace frontend
 ```
 
-The Playwright config starts the API and Vite server when they are not already running. Install the browser once with `npx playwright install chromium` if needed. The smoke tests cover page navigation, the Learn panel, one-click automaton handoff, the command palette, and the end-to-end demo story.
+The Playwright config starts the API and Vite server when they are not already running. Install the browser once with `npx playwright install chromium` if needed. The smoke tests cover page navigation, the Learn panel, one-click automaton handoff, the command palette, workspace import/export, and responsive layouts.
