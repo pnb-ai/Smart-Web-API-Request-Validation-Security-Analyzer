@@ -10,3 +10,4 @@ test-results/
 .coverage
 .env
 *.py[cod]
+.vercel
