@@ -12,7 +12,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173","https://smart-web-api-request-validation-security-analyzer-71nzpqssj.vercel.app"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173","https://smart-web-api-request-validation-security-analyzer-71nzpqssj.vercel.app","https://smart-web-api-request-validation-security-analyzer-rnn6ofzcy.vercel.app","
+https://smart-web-api-request-validation-se.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
