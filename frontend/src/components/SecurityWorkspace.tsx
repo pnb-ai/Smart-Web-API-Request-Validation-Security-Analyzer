@@ -319,7 +319,7 @@ export function SecurityWorkspace() {
           <div class="title">
             <h1>API Request Security Audit Report</h1>
             <p>Automata-Based Syntax & Exploit Signature Inspection</p>
-            <p><small>Generated at ${new Date().toLocaleString()} · Automata Studio</small></p>
+            <p><small>Generated at ${new Date().toLocaleString()} · Protocol Lens</small></p>
           </div>
           <div class="score-card">
             <div>Risk Assessment</div>
@@ -333,9 +333,8 @@ export function SecurityWorkspace() {
         </div>
 
         <h3>Vulnerability Findings (${report.findings.length})</h3>
-        ${
-          report.findings.length > 0
-            ? `
+        ${report.findings.length > 0
+        ? `
           <table>
             <thead>
               <tr>
@@ -352,8 +351,8 @@ export function SecurityWorkspace() {
             </tbody>
           </table>
         `
-            : '<p>No attack signatures or suspicious vectors detected. Request evaluated as CLEAN.</p>'
-        }
+        : '<p>No attack signatures or suspicious vectors detected. Request evaluated as CLEAN.</p>'
+      }
 
         <h3 style="margin-top: 32px;">Analyzed Raw HTTP Request</h3>
         <pre>${escapeHtml(rawRequest)}</pre>
@@ -518,7 +517,7 @@ export function SecurityWorkspace() {
                 <span>{error}</span>
               </div>
             )}
-            {analyzing && !report && <LoadingSkeleton label="Analyzing request security"/>}
+            {analyzing && !report && <LoadingSkeleton label="Analyzing request security" />}
 
             {/* Highlighted Request Inspector */}
             {report && (
